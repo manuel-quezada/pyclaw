@@ -161,6 +161,7 @@ class Controller(object):
         self.logger = logging.getLogger('pyclaw.controller')
 
         # Classic output parameters, used in run convenience method
+        self.name_file = None
         self.tfinal = 1.0
         r"""(float) - Final time output, ``default = 1.0``"""
         self.output_style = 1
@@ -359,7 +360,13 @@ class Controller(object):
 
         for t in output_times[1:]:
             if self.output_style < 3:
-                status = self.solver.evolve_to_time(self.solution,t)
+                if self.name_file is not None and not os.path.exists('./'+self.name_file+'.csv'):
+                    file=open(self.name_file+'.csv','w')
+                    file.close()
+                if len(self.frames)>0:
+                    status = self.solver.evolve_to_time(self.solution,t,ref_solution=self.frames[0],name_file=self.name_file,dx=self.delta[0])
+                else:
+                    status = self.solver.evolve_to_time(self.solution,t)
             else:
                 # Take nstepout steps and output
                 for n in range(self.nstepout):

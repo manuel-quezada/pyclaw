@@ -549,7 +549,7 @@ class Solver(object):
             if tend - t - self.dt < 1.e-14*t:
                 self.dt = tend - t
 
-    def evolve_to_time(self, solution, tend=None):
+    def evolve_to_time(self, solution, tend=None, ref_solution=None, name_file=None,dx=1.0):
         r"""
         Evolve solution from solution.t to tend.  If tend is not specified,
         take a single step.
@@ -619,6 +619,23 @@ class Solver(object):
             cfl = self.cfl.get_cached_max()
             self.accept_step = self.accept_reject_step(state)
             if self.accept_step:
+                # Save L1 error
+                if ref_solution is not None:
+                    if name_file is None:
+                        name_file = "file"
+                    from petsc4py import PETSc
+                    from mpi4py import MPI
+                    localSumDiff = np.abs(ref_solution.q[0] - solution.q[0]).sum()
+                    localSumRef = np.abs(ref_solution.q[0]).sum()
+                    globalSumDiff = PETSc.COMM_WORLD.tompi4py().allreduce(sendobj=localSumDiff,op=MPI.SUM)
+                    globalSumRef = PETSc.COMM_WORLD.tompi4py().allreduce(sendobj=localSumRef,op=MPI.SUM)
+                    rank = PETSc.COMM_WORLD.getRank()
+                    if rank==0:
+                        file=open(name_file+'.csv','a')
+                        file.write(str(solution.t)+' '+str(dx*globalSumDiff)+' '+str(globalSumDiff/globalSumRef)+'\n')
+                        file.close()
+                    #
+                #
                 # Accept this step
                 self.status['cflmax'] = max(cfl, self.status['cflmax'])
                 if self.dt_variable:
